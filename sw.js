@@ -1,5 +1,5 @@
 // 앱 셸 캐시. 파일을 바꾸면 VERSION을 올려 주세요.
-const VERSION = 'fyd-v2';
+const VERSION = 'fyd-v3';
 const ASSETS = [
   './', 'index.html', 'styles.css', 'manifest.webmanifest',
   'js/app.js', 'js/dates.js', 'js/backup.js', 'js/store.js', 'js/ink.js', 'js/flip.js',

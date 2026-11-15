@@ -116,3 +116,10 @@ body:not(.mode-keyboard) .area textarea { pointer-events: none; }
   .pill { padding: 0 8px; }
   .icon-btn { width: 32px; }
 }
+
+/* 아이패드: 상단 안전 영역(상태 표시가 오른쪽 위에 세로로 쌓이는 경우)을 통째로 비우지 않고,
+   헤더는 위로 붙이되 오른쪽 상태 표시 자리만 비켜 둠 */
+@media (min-width: 700px) {
+  .app { padding-top: max(8px, min(env(safe-area-inset-top), 26px)); }
+  .top { padding-right: clamp(0px, calc((env(safe-area-inset-top) - 30px) * 1.1), 96px); }
+}
