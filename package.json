@@ -1,0 +1,10 @@
+{
+  "name": "five-year-diary",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/unit/*.test.mjs",
+    "e2e": "node tests/e2e/app.e2e.mjs",
+    "serve": "node tests/e2e/server.mjs"
+  }
+}
