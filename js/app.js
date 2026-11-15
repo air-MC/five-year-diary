@@ -2,7 +2,7 @@ import { DAYS, MONTH_EN, nextDay, prevDay, todayMD, yearsForDay, key } from './d
 import { makeBackup, parseBackup, mergeEntries } from './backup.js';
 import { openStore } from './store.js';
 import { createInk } from './ink.js';
-import { flip } from './flip.js';
+import { startTurn } from './flip.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -56,7 +56,7 @@ function renderPage() {
     return b;
   });
   state.undoStack = [];
-  const old = $('.page:not(.leaf)', stage);
+  const old = $('.page:not(.snap)', stage);
   if (old) old.replaceWith(page); else stage.appendChild(page);
   requestAnimationFrame(() => state.blocks.forEach((b) => b.ink?.resize()));
   loadEntries();
@@ -106,10 +106,13 @@ function setSaveState(t) { $('[data-testid=save-state]').textContent = t; }
 async function go(target, direction) {
   if (state.flipping) return;
   if (target.m === state.cur.m && target.d === state.cur.d) return;
-  await flush();
   state.flipping = true;
-  const stage = $('[data-testid=stage]');
-  await flip(stage, direction, () => { state.cur = target; renderPage(); });
+  flush();
+  const turn = startTurn($('[data-testid=stage]'), direction, {
+    renderNew: () => { state.cur = target; renderPage(); },
+    renderOld: () => {},
+  });
+  await turn.run();
   state.flipping = false;
 }
 const goNext = () => go(nextDay(state.cur), 'next');
@@ -122,20 +125,49 @@ const goToday = () => {
 
 function bindSwipe() {
   const stage = $('[data-testid=stage]');
-  let s = null;
+  let s = null; // {id, x, y, turn, dir, lastX, lastT, vx}
   stage.addEventListener('pointerdown', (e) => {
-    if (e.pointerType !== 'touch') return; // 펜·마우스는 넘김에 쓰지 않음
+    if (e.pointerType !== 'touch' || state.flipping) return; // 펜·마우스는 넘김에 쓰지 않음
     if (state.settings.fingerDraw && state.tool.mode !== 'keyboard') return;
-    s = { x: e.clientX, y: e.clientY, id: e.pointerId };
+    s = { id: e.pointerId, x: e.clientX, y: e.clientY, turn: null, lastX: e.clientX, lastT: e.timeStamp, vx: 0 };
   });
-  const end = (e) => {
+  window.addEventListener('pointermove', (e) => {
     if (!s || e.pointerId !== s.id) return;
     const dx = e.clientX - s.x, dy = e.clientY - s.y;
+    if (!s.turn) {
+      if (Math.abs(dx) < 12 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+      const dir = dx < 0 ? 'next' : 'prev';
+      const orig = state.cur;
+      const target = dir === 'next' ? nextDay(orig) : prevDay(orig);
+      const r = stage.getBoundingClientRect();
+      state.flipping = true;
+      flush();
+      document.activeElement?.blur?.();
+      try { stage.setPointerCapture(e.pointerId); } catch { /* 합성 이벤트 */ }
+      s.turn = startTurn(stage, dir, {
+        cornerY: (s.y - r.top) / r.height,
+        renderNew: () => { state.cur = target; renderPage(); },
+        renderOld: () => { state.cur = orig; renderPage(); },
+      });
+    }
+    const dt = e.timeStamp - s.lastT;
+    if (dt >= 8) { // 너무 촘촘한 표본은 속도를 부풀리므로 건너뜀
+      s.vx = Math.max(-3, Math.min(3, 0.7 * ((e.clientX - s.lastX) / dt) + 0.3 * s.vx));
+      s.lastX = e.clientX; s.lastT = e.timeStamp;
+    }
+    s.turn.drag(dx, dy);
+  });
+  const end = async (e) => {
+    if (!s || e.pointerId !== s.id) return;
+    const cur = s;
     s = null;
-    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) (dx < 0 ? goNext : goPrev)();
+    if (!cur.turn) return;
+    await cur.turn.release(e.type === 'pointercancel' ? 0 : cur.vx);
+    state.flipping = false;
   };
-  stage.addEventListener('pointerup', end);
-  stage.addEventListener('pointercancel', () => { s = null; });
+  // 넘김이 시작되면 손가락 아래 요소가 새 페이지로 바뀌므로, 끝 이벤트는 window에서 받음
+  window.addEventListener('pointerup', end);
+  window.addEventListener('pointercancel', end);
 }
 
 // ---------- 도구 ----------
@@ -289,10 +321,12 @@ async function updateBanner() {
   const lb = state.settings.lastBackup || 0;
   const days = Math.floor((Date.now() - lb) / 86400000);
   const hasData = (await state.store.all()).some((e) => e.text || e.strokes?.length);
-  if (!hasData || days < BACKUP_REMIND_DAYS) { el.hidden = true; return; }
-  el.innerHTML = `<span>${lb ? `마지막 백업이 ${days}일 전이에요.` : '아직 백업하지 않았어요.'} 기록은 이 기기에만 저장돼요.</span><button>지금 백업</button>`;
+  const snoozed = (state.settings.backupSnooze || 0) > Date.now();
+  if (!hasData || days < BACKUP_REMIND_DAYS || snoozed) { el.hidden = true; return; }
+  el.innerHTML = `<span>${lb ? `마지막 백업이 ${days}일 전이에요.` : '아직 백업하지 않았어요.'}</span><button data-b="now">지금 백업</button><button class="x" data-b="later">나중에</button>`;
   el.hidden = false;
-  $('button', el).onclick = exportBackup;
+  $('[data-b=now]', el).onclick = exportBackup;
+  $('[data-b=later]', el).onclick = async () => { await saveSettings({ backupSnooze: Date.now() + 3 * 86400000 }); el.hidden = true; };
 }
 
 let toastTimer;

@@ -17,8 +17,20 @@
 <body data-theme="sage">
   <div class="app">
     <header class="top">
-      <div class="date" data-testid="page-date"></div>
-      <div class="date-en"></div>
+      <div class="when"><div class="date" data-testid="page-date"></div><div class="date-en"></div></div>
+      <div class="toolbar" role="toolbar">
+        <button class="tool" data-mode="pen" data-testid="tool-pen" aria-label="펜">
+          <svg viewBox="0 0 24 24"><path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 6l3 3"/></svg></button>
+        <button class="tool size" data-testid="tool-size" aria-label="굵기"><span></span></button>
+        <span class="colors"></span>
+        <button class="tool" data-mode="eraser" data-testid="tool-eraser" aria-label="지우개">
+          <svg viewBox="0 0 24 24"><path d="M8 20h12"/><path d="M4 15l9-9 6 6-7 7H8z"/></svg></button>
+        <button class="tool" data-mode="keyboard" data-testid="tool-keyboard" aria-label="키보드">
+          <svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg></button>
+        <button class="tool" data-testid="tool-undo" aria-label="실행취소">
+          <svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg></button>
+        <span class="save-state" data-testid="save-state"></span>
+      </div>
       <div class="nav">
         <button class="pill" data-testid="prev" aria-label="전날">‹</button>
         <button class="pill" data-testid="today">오늘</button>
@@ -29,20 +41,6 @@
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg></button>
       </div>
     </header>
-
-    <div class="toolbar" role="toolbar">
-      <button class="tool" data-mode="pen" data-testid="tool-pen" aria-label="펜">
-        <svg viewBox="0 0 24 24"><path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 6l3 3"/></svg></button>
-      <button class="tool size" data-testid="tool-size" aria-label="굵기"><span></span></button>
-      <span class="colors"></span>
-      <button class="tool" data-mode="eraser" data-testid="tool-eraser" aria-label="지우개">
-        <svg viewBox="0 0 24 24"><path d="M8 20h12"/><path d="M4 15l9-9 6 6-7 7H8z"/></svg></button>
-      <button class="tool" data-mode="keyboard" data-testid="tool-keyboard" aria-label="키보드">
-        <svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg></button>
-      <button class="tool" data-testid="tool-undo" aria-label="실행취소">
-        <svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg></button>
-      <span class="save-state" data-testid="save-state"></span>
-    </div>
 
     <div class="banner" hidden data-testid="backup-banner"></div>
 

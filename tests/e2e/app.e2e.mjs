@@ -20,8 +20,8 @@ test.before(async () => {
 });
 test.after(async () => { await browser.close(); srv.close(); });
 
-async function fresh({ start = 2026, viewport = { width: 834, height: 1112 } } = {}) {
-  const ctx = await browser.newContext({ viewport, acceptDownloads: true, reducedMotion: 'reduce' });
+async function fresh({ start = 2026, viewport = { width: 834, height: 1112 }, motion = false } = {}) {
+  const ctx = await browser.newContext({ viewport, acceptDownloads: true, reducedMotion: motion ? 'no-preference' : 'reduce' });
   const page = await ctx.newPage();
   await page.clock.setFixedTime(NOW);
   await page.goto(url);
@@ -33,16 +33,24 @@ async function fresh({ start = 2026, viewport = { width: 834, height: 1112 } } =
 }
 
 // 합성 포인터 이벤트(펜/터치)로 선 긋기
-async function drag(page, testid, type, from, to, steps = 8) {
-  await page.evaluate(({ testid, type, from, to, steps }) => {
+async function drag(page, testid, type, from, to, steps = 8, delay = 0) {
+  await page.evaluate(async ({ testid, type, from, to, steps, delay }) => {
     const el = document.querySelector(`[data-testid="${testid}"]`);
     const r = el.getBoundingClientRect();
     const at = (t) => ({ clientX: r.left + from[0] + (to[0] - from[0]) * t, clientY: r.top + from[1] + (to[1] - from[1]) * t });
-    const ev = (name, t) => el.dispatchEvent(new PointerEvent(name, { pointerType: type, pointerId: 7, isPrimary: true, pressure: .6, bubbles: true, cancelable: true, ...at(t) }));
+    // 실제 손가락처럼, 이벤트는 그 순간 손가락 아래에 있는 요소로 보냄 (펜은 캡처한 캔버스로)
+    const ev = (name, t) => {
+      const pos = at(t);
+      const target = type === 'pen' ? el : (document.elementFromPoint(pos.clientX, pos.clientY) || document.body);
+      target.dispatchEvent(new PointerEvent(name, { pointerType: type, pointerId: 7, isPrimary: true, pressure: .6, bubbles: true, cancelable: true, ...pos }));
+    };
     ev('pointerdown', 0);
-    for (let i = 1; i <= steps; i++) ev('pointermove', i / steps);
+    for (let i = 1; i <= steps; i++) {
+      ev('pointermove', i / steps);
+      if (delay) await new Promise((r) => setTimeout(r, delay));
+    }
     ev('pointerup', 1);
-  }, { testid, type, from, to, steps });
+  }, { testid, type, from, to, steps, delay });
 }
 const entry = (page, k) => page.evaluate((k) => new Promise((res) => {
   const o = indexedDB.open('five-year-diary');
@@ -157,5 +165,28 @@ test('phone layout fits', async () => {
   const sw = await page.evaluate(() => document.documentElement.scrollWidth);
   assert.ok(sw <= 390, 'no horizontal overflow: ' + sw);
   await page.screenshot({ path: path.join(OUT, 'phone.png') });
+  await ctx.close();
+});
+
+test('animated page turn: short drag springs back, long drag turns', async () => {
+  const { ctx, page } = await fresh({ motion: true });
+  await page.getByTestId('tool-keyboard').click();
+  await page.getByTestId('text-2026').fill('오늘의 글');
+  await saved(page);
+  await page.getByTestId('tool-pen').click();
+  await drag(page, 'canvas-2027', 'touch', [600, 40], [540, 45], 8, 40); // 천천히 짧게 → 되돌아옴
+  await page.waitForTimeout(700);
+  assert.equal(await page.getByTestId('page-date').innerText(), '11월 15일');
+  assert.equal(await page.getByTestId('text-2026').inputValue(), '오늘의 글');
+  assert.equal(await page.locator('.snap, .turn-fx').count(), 0);
+  await drag(page, 'canvas-2027', 'touch', [600, 40], [100, 60]); // 길게 → 넘어감
+  await page.waitForTimeout(900);
+  assert.equal(await page.getByTestId('page-date').innerText(), '11월 16일');
+  assert.equal(await page.locator('.snap, .turn-fx').count(), 0);
+  assert.equal(await page.locator('.page').evaluate((el) => el.style.clipPath), '');
+  await page.getByTestId('prev').click();
+  await page.waitForTimeout(900);
+  assert.equal(await page.getByTestId('page-date').innerText(), '11월 15일');
+  assert.equal(await page.getByTestId('text-2026').inputValue(), '오늘의 글');
   await ctx.close();
 });
