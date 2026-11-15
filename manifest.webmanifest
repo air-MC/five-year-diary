@@ -1,0 +1,16 @@
+{
+  "name": "다섯 해의 기록",
+  "short_name": "다섯 해",
+  "description": "하루 한 페이지, 같은 날짜의 다섯 해를 쓰는 5년 다이어리",
+  "lang": "ko",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#FCFBF8",
+  "theme_color": "#FCFBF8",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
